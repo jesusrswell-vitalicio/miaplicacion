@@ -210,7 +210,7 @@ const Calculator: React.FC<CalculatorProps> = ({ percentages }) => {
             La valoración es solo orientativa. Para recibir un estudio gratuito, póngase en contacto con nosotros.
           </p>
           <div className="mt-4 flex flex-col items-center">
-             <div className="text-4xl sm:text-5xl font-black tracking-tighter mb-1">
+             <div className="text-4xl sm:text-4xl font-black tracking-tighter mb-1">
                <span className="text-[#a12d34]">663</span> <span className="text-black">04 04 04</span>
              </div>
              <div className="text-xl sm:text-2xl font-bold text-[#a12d34] tracking-wider uppercase">
@@ -287,7 +287,7 @@ const Calculator: React.FC<CalculatorProps> = ({ percentages }) => {
               </p>
             </div>
             <a 
-              href="https://grupovitalicio.es/venta-nuda-propiedad/" 
+              href="https://grupovitalicio.es/renta-vitalicia/" 
               target="_blank" 
               rel="noopener noreferrer"
               className="mt-8 py-4 px-6 bg-[#a12d34] text-white rounded-2xl font-black text-xs uppercase tracking-widest hover:opacity-90 transition-all flex items-center justify-center gap-3 shadow-lg shadow-red-900/10"
