@@ -2,6 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { PercentageEntry, CalculationInputs, CalculationResult } from '../types';
 import { LIFE_EXPECTANCY_TABLE } from '../constants';
+import { jsPDF } from 'jspdf';
 
 interface CalculatorProps {
   percentages: PercentageEntry[];
@@ -18,13 +19,10 @@ const Calculator: React.FC<CalculatorProps> = ({ percentages }) => {
   const [result, setResult] = useState<CalculationResult | null>(null);
 
   const calculate = () => {
-    // Si son dos personas, usamos la edad de la persona más joven
-    // ya que el usufructo se extingue cuando fallece el último
     const relevantAge = inputs.isSinglePerson || inputs.age2 === null
       ? inputs.age1 
       : Math.min(inputs.age1, inputs.age2);
 
-    // Buscar porcentaje en la tabla
     const entry = percentages.find(p => p.age === relevantAge) || 
                   percentages.sort((a,b) => b.age - a.age).find(p => relevantAge >= p.age) ||
                   { percentage: 0 };
@@ -33,8 +31,6 @@ const Calculator: React.FC<CalculatorProps> = ({ percentages }) => {
     const nudaPropiedadValue = (inputs.marketValue * percentage) / 100;
     const usufructValue = inputs.marketValue - nudaPropiedadValue;
     
-    // Cálculo de Renta Vitalicia (estimación)
-    // Usamos esperanza de vida aproximada para repartir el capital
     const lifeExpectancy = LIFE_EXPECTANCY_TABLE[relevantAge] || 15;
     const monthlyAnnuity = nudaPropiedadValue / (lifeExpectancy * 12);
 
@@ -47,7 +43,6 @@ const Calculator: React.FC<CalculatorProps> = ({ percentages }) => {
     });
   };
 
-  // Recalculate whenever inputs change
   useEffect(() => {
     calculate();
   }, [inputs, percentages]);
@@ -55,42 +50,126 @@ const Calculator: React.FC<CalculatorProps> = ({ percentages }) => {
   const formatCurrency = (val: number) => 
     new Intl.NumberFormat('es-ES', { style: 'currency', currency: 'EUR' }).format(val);
 
+  const handleDownloadPDF = () => {
+    if (!result) return;
+    
+    const doc = new jsPDF();
+    const margin = 20;
+    const corporateColor = '#a12d34';
+    const greyColor = '#6b7280';
+
+    // Header Branding
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(14);
+    doc.setTextColor(greyColor);
+    doc.text('GRUPO', margin, 25);
+    doc.setFontSize(24);
+    doc.setTextColor(corporateColor);
+    doc.text('VITALICIO', margin + 20, 25);
+    
+    doc.setFontSize(10);
+    doc.setFont('helvetica', 'bold');
+    doc.text('VALORACIÓN ORIENTATIVA', margin, 32);
+
+    doc.setDrawColor(corporateColor);
+    doc.setLineWidth(1);
+    doc.line(margin, 38, 190, 38);
+
+    // Main Content
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(11);
+    doc.setTextColor(0, 0, 0);
+    let y = 50;
+
+    const addLine = (label: string, value: string) => {
+      doc.setFont('helvetica', 'bold');
+      doc.text(`${label}:`, margin, y);
+      doc.setFont('helvetica', 'normal');
+      doc.text(value, margin + 50, y);
+      y += 10;
+    };
+
+    addLine('Fecha', new Date().toLocaleDateString('es-ES'));
+    addLine('Valor de Mercado', formatCurrency(inputs.marketValue));
+    addLine('Beneficiarios', inputs.isSinglePerson ? '1 persona' : '2 personas');
+    addLine('Edad de referencia', `${inputs.isSinglePerson ? inputs.age1 : Math.min(inputs.age1, inputs.age2 || 0)} años`);
+    
+    y += 5;
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(13);
+    doc.setTextColor(corporateColor);
+    doc.text('RESULTADOS DE LA ESTIMACIÓN', margin, y);
+    y += 10;
+
+    doc.setFontSize(11);
+    doc.setTextColor(0, 0, 0);
+    addLine('Valor Nuda Propiedad', formatCurrency(result.nudaPropiedadValue));
+    addLine('Valor del Usufructo', formatCurrency(result.usufructValue));
+    addLine('Renta Vitalicia Mensual', `${formatCurrency(result.monthlyAnnuity)} / mes`);
+
+    y += 15;
+    doc.setFont('helvetica', 'bold');
+    doc.setTextColor(0, 0, 0);
+    const disclaimerTitle = 'IMPORTANTE:';
+    doc.text(disclaimerTitle, margin, y);
+    y += 7;
+    
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(10);
+    const disclaimer = "La valoración es solo orientativa. Para recibir un estudio gratuito, póngase en contacto con nosotros a través del Tlf. 663 040404 o bien a través de la pagina web, grupovitalicio.es. Estudios detallados gratuitos y sin compromiso.";
+    const splitDisclaimer = doc.splitTextToSize(disclaimer, 170);
+    doc.text(splitDisclaimer, margin, y);
+    
+    y += (splitDisclaimer.length * 6) + 5;
+    doc.setFontSize(12);
+    doc.setFont('helvetica', 'bold');
+    doc.setTextColor(corporateColor);
+    doc.text('Teléfono: 663 040404', margin, y);
+    y += 8;
+    doc.text('Web: grupovitalicio.es', margin, y);
+
+    doc.save(`estimacion-vitalicio-${Date.now()}.pdf`);
+  };
+
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 gap-8 items-start animate-fadeIn">
+    <div className="grid grid-cols-1 lg:grid-cols-12 gap-10 items-start animate-fadeIn">
       {/* Input Section */}
-      <div className="bg-white p-6 rounded-2xl shadow-xl border border-slate-100 space-y-6">
-        <h2 className="text-xl font-semibold text-slate-800 border-b pb-4">Configuración del Inmueble</h2>
+      <div className="lg:col-span-5 bg-white p-8 rounded-3xl shadow-xl border border-slate-100 space-y-8">
+        <div>
+          <h2 className="text-2xl font-black text-slate-800 tracking-tight uppercase">VALORACIÓN</h2>
+          <div className="h-2 w-16 bg-[#a12d34] mt-2 rounded-full"></div>
+        </div>
         
-        <div className="space-y-4">
+        <div className="space-y-6">
           <div>
-            <label className="block text-sm font-medium text-slate-700 mb-1">Valor de Mercado (€)</label>
+            <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Precio de Mercado</label>
             <div className="relative">
               <input
                 type="number"
                 value={inputs.marketValue}
                 onChange={(e) => setInputs({ ...inputs, marketValue: Number(e.target.value) })}
-                className="w-full pl-4 pr-12 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all outline-none"
+                className="w-full pl-6 pr-12 py-4 bg-slate-50 border border-slate-200 rounded-2xl focus:ring-4 focus:ring-[#a12d34]/10 focus:border-[#a12d34] transition-all outline-none font-bold text-xl text-slate-700"
                 placeholder="Ej: 300000"
               />
-              <span className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400">€</span>
+              <span className="absolute right-6 top-1/2 -translate-y-1/2 text-slate-400 font-bold text-lg">€</span>
             </div>
           </div>
 
-          <div className="pt-2">
-            <label className="block text-sm font-medium text-slate-700 mb-3">Beneficiarios</label>
-            <div className="flex bg-slate-50 p-1 rounded-xl border border-slate-200">
+          <div>
+            <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3">Beneficiarios</label>
+            <div className="flex bg-slate-100 p-1.5 rounded-2xl border border-slate-200">
               <button
                 onClick={() => setInputs({ ...inputs, isSinglePerson: true, age2: null })}
-                className={`flex-1 py-2 rounded-lg text-sm font-medium transition-all ${
-                  inputs.isSinglePerson ? 'bg-white shadow-sm text-indigo-600' : 'text-slate-500'
+                className={`flex-1 py-3 rounded-xl text-sm font-bold transition-all ${
+                  inputs.isSinglePerson ? 'bg-white shadow-md text-[#a12d34]' : 'text-slate-500 hover:text-slate-700'
                 }`}
               >
                 1 Persona
               </button>
               <button
                 onClick={() => setInputs({ ...inputs, isSinglePerson: false, age2: inputs.age1 })}
-                className={`flex-1 py-2 rounded-lg text-sm font-medium transition-all ${
-                  !inputs.isSinglePerson ? 'bg-white shadow-sm text-indigo-600' : 'text-slate-500'
+                className={`flex-1 py-3 rounded-xl text-sm font-bold transition-all ${
+                  !inputs.isSinglePerson ? 'bg-white shadow-md text-[#a12d34]' : 'text-slate-500 hover:text-slate-700'
                 }`}
               >
                 2 Personas
@@ -100,96 +179,122 @@ const Calculator: React.FC<CalculatorProps> = ({ percentages }) => {
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">Edad {inputs.isSinglePerson ? '' : 'Persona 1'}</label>
+              <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Edad {inputs.isSinglePerson ? '' : 'Titular 1'}</label>
               <input
                 type="number"
                 min="65"
                 max="100"
                 value={inputs.age1}
                 onChange={(e) => setInputs({ ...inputs, age1: Number(e.target.value) })}
-                className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 transition-all outline-none"
+                className="w-full px-6 py-4 bg-slate-50 border border-slate-200 rounded-2xl focus:ring-4 focus:ring-[#a12d34]/10 outline-none transition-all font-bold text-slate-700 text-lg"
               />
             </div>
             {!inputs.isSinglePerson && (
               <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">Edad Persona 2</label>
+                <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Edad Titular 2</label>
                 <input
                   type="number"
                   min="65"
                   max="100"
                   value={inputs.age2 || 0}
                   onChange={(e) => setInputs({ ...inputs, age2: Number(e.target.value) })}
-                  className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 transition-all outline-none"
+                  className="w-full px-6 py-4 bg-slate-50 border border-slate-200 rounded-2xl focus:ring-4 focus:ring-[#a12d34]/10 outline-none transition-all font-bold text-slate-700 text-lg"
                 />
               </div>
             )}
           </div>
         </div>
 
-        <div className="p-4 bg-indigo-50 rounded-xl text-indigo-700 text-sm flex gap-3">
-          <i className="fas fa-info-circle mt-0.5"></i>
-          <p>
-            El cálculo se basa en el usufructo vitalicio. En el caso de dos personas, se toma la edad del más joven para garantizar el derecho de ambos.
+        <div className="p-6 bg-slate-50 rounded-2xl border border-slate-200 text-slate-600 text-sm leading-relaxed text-center">
+          <p className="font-semibold mb-2">
+            La valoración es solo orientativa. Para recibir un estudio gratuito, póngase en contacto con nosotros.
           </p>
+          <div className="mt-4 flex flex-col items-center">
+             <div className="text-4xl sm:text-5xl font-black tracking-tighter mb-1">
+               <span className="text-[#a12d34]">663</span> <span className="text-black">04 04 04</span>
+             </div>
+             <div className="text-xl sm:text-2xl font-bold text-[#a12d34] tracking-wider uppercase">
+               grupovitalicio.es
+             </div>
+             <p className="text-[10px] font-bold text-slate-400 mt-2 uppercase">Estudios detallados gratuitos y sin compromiso</p>
+          </div>
         </div>
+        
+        <button 
+          onClick={handleDownloadPDF}
+          className="w-full py-4 bg-slate-900 text-white rounded-2xl font-bold hover:bg-black transition-all flex items-center justify-center gap-3 shadow-lg active:scale-[0.98] uppercase text-xs tracking-widest"
+        >
+          <i className="fas fa-file-pdf"></i>
+          Descargar Resultados PDF
+        </button>
       </div>
 
       {/* Results Section */}
-      <div className="space-y-6">
-        <div className="bg-indigo-600 text-white p-8 rounded-2xl shadow-xl relative overflow-hidden">
+      <div className="lg:col-span-7 space-y-8">
+        <div className="bg-[#a12d34] text-white p-12 rounded-[2.5rem] shadow-2xl relative overflow-hidden group">
           <div className="relative z-10">
-            <p className="text-indigo-100 text-sm font-medium uppercase tracking-wider mb-1">Valor Nuda Propiedad</p>
-            <h3 className="text-4xl font-bold mb-6">
+            <p className="text-white/60 text-xs font-black uppercase tracking-[0.3em] mb-4">Capital Nuda Propiedad</p>
+            <h3 className="text-5xl sm:text-6xl font-black mb-12 tracking-tighter">
               {result ? formatCurrency(result.nudaPropiedadValue) : '€ 0,00'}
             </h3>
             
-            <div className="grid grid-cols-2 gap-4 pt-6 border-t border-indigo-500/50">
+            <div className="grid grid-cols-2 gap-10 pt-10 border-t border-white/20">
               <div>
-                <p className="text-indigo-200 text-xs mb-1">Porcentaje Aplicado</p>
-                <p className="text-xl font-semibold">{result?.percentageUsed.toFixed(2)}%</p>
+                <p className="text-white/60 text-[10px] font-black uppercase tracking-widest mb-2">Valor Usufructo</p>
+                <p className="text-2xl sm:text-3xl font-black">{result ? formatCurrency(result.usufructValue) : '€ 0,00'}</p>
               </div>
               <div>
-                <p className="text-indigo-200 text-xs mb-1">Valor Usufructo</p>
-                <p className="text-xl font-semibold">{result ? formatCurrency(result.usufructValue) : '€ 0,00'}</p>
+                <p className="text-white/60 text-[10px] font-black uppercase tracking-widest mb-2">Renta Mensual Estimada</p>
+                <p className="text-2xl sm:text-3xl font-black">{result ? formatCurrency(result.monthlyAnnuity) : '€ 0,00'}</p>
               </div>
             </div>
           </div>
-          {/* Decorative Circle */}
-          <div className="absolute -right-16 -top-16 w-48 h-48 bg-white/10 rounded-full"></div>
+          <div className="absolute top-0 right-0 p-10 opacity-5">
+            <i className="fas fa-home text-[12rem]"></i>
+          </div>
         </div>
 
-        <div className="bg-white p-6 rounded-2xl shadow-lg border border-slate-100">
-          <h4 className="text-lg font-bold text-slate-800 mb-4">Opciones de Pago</h4>
-          
-          <div className="space-y-4">
-            {/* Payment Option 1 */}
-            <div className="p-4 rounded-xl border-2 border-slate-100 hover:border-indigo-100 hover:bg-indigo-50/30 transition-all cursor-default group">
-              <div className="flex justify-between items-center mb-2">
-                <span className="text-sm font-semibold text-slate-500 uppercase">Pago Único</span>
-                <span className="bg-green-100 text-green-700 px-2 py-0.5 rounded text-xs font-bold">RECOMENDADO</span>
-              </div>
-              <div className="text-2xl font-bold text-slate-800">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div className="bg-white p-8 rounded-[2rem] shadow-xl border border-slate-100 flex flex-col justify-between group hover:border-[#a12d34]/30 transition-all">
+            <div>
+              <span className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] block mb-5">Pago Único</span>
+              <div className="text-3xl font-black text-slate-800 mb-3">
                 {result ? formatCurrency(result.oneTimePayment) : '€ 0,00'}
               </div>
-              <p className="text-xs text-slate-500 mt-1">Capital inicial recibido de forma inmediata tras la firma.</p>
+              <p className="text-xs text-slate-500 leading-relaxed font-medium">
+                Cobro total del capital en la firma de la escritura pública ante notario.
+              </p>
             </div>
-
-            {/* Payment Option 2 */}
-            <div className="p-4 rounded-xl border-2 border-slate-100 hover:border-indigo-100 hover:bg-indigo-50/30 transition-all cursor-default">
-              <div className="flex justify-between items-center mb-2">
-                <span className="text-sm font-semibold text-slate-500 uppercase">Renta Vitalicia</span>
-              </div>
-              <div className="text-2xl font-bold text-slate-800">
-                {result ? `${formatCurrency(result.monthlyAnnuity)} / mes` : '€ 0,00 / mes'}
-              </div>
-              <p className="text-xs text-slate-500 mt-1">Estimado mensual basado en la esperanza de vida estadística.</p>
-            </div>
+            <a 
+              href="https://grupovitalicio.es" 
+              target="_blank" 
+              rel="noopener noreferrer"
+              className="mt-8 py-4 px-6 bg-slate-100 text-[#a12d34] rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-[#a12d34] hover:text-white transition-all flex items-center justify-center gap-3"
+            >
+              Solicitar Estudio <i className="fas fa-arrow-right text-[10px]"></i>
+            </a>
           </div>
 
-          <button className="w-full mt-6 bg-slate-800 text-white py-3 rounded-xl font-semibold hover:bg-slate-900 transition-colors flex items-center justify-center gap-2">
-            <i className="fas fa-file-pdf"></i>
-            Descargar Informe PDF
-          </button>
+          <div className="bg-white p-8 rounded-[2rem] shadow-xl border border-slate-100 flex flex-col justify-between group hover:border-[#a12d34]/30 transition-all">
+            <div>
+              <span className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] block mb-5">Renta Mensual</span>
+              <div className="text-3xl font-black text-[#a12d34] mb-3">
+                {result ? `${formatCurrency(result.monthlyAnnuity)}` : '€ 0,00'}
+                <span className="text-sm font-normal text-slate-400 ml-1">/mes</span>
+              </div>
+              <p className="text-xs text-slate-500 leading-relaxed font-medium">
+                Reciba una renta mensual garantizada de por vida sin perder el uso de su casa.
+              </p>
+            </div>
+            <a 
+              href="https://grupovitalicio.es/venta-nuda-propiedad/" 
+              target="_blank" 
+              rel="noopener noreferrer"
+              className="mt-8 py-4 px-6 bg-[#a12d34] text-white rounded-2xl font-black text-xs uppercase tracking-widest hover:opacity-90 transition-all flex items-center justify-center gap-3 shadow-lg shadow-red-900/10"
+            >
+              Ver Plan Rentas <i className="fas fa-calendar text-[10px]"></i>
+            </a>
+          </div>
         </div>
       </div>
     </div>
