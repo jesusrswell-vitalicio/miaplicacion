@@ -7,10 +7,9 @@ import { jsPDF } from 'jspdf';
 interface CalculatorProps {
   percentages: PercentageEntry[];
 }
-
 const Calculator: React.FC<CalculatorProps> = ({ percentages }) => {
   const [inputs, setInputs] = useState<CalculationInputs>({
-    marketValue: 250000,
+        marketValue: 250000,
     age1: 70,
     age2: null,
     isSinglePerson: true
@@ -47,8 +46,14 @@ const Calculator: React.FC<CalculatorProps> = ({ percentages }) => {
     calculate();
   }, [inputs, percentages]);
 
-  const formatCurrency = (val: number) => 
-    new Intl.NumberFormat('es-ES', { style: 'currency', currency: 'EUR' }).format(val);
+const formatCurrency = (val: number) => {
+  return new Intl.NumberFormat('de-DE', { // Usamos 'de-DE' (Alemán)
+    style: 'currency', 
+    currency: 'EUR',
+    maximumFractionDigits: 0,
+    minimumFractionDigits: 0
+  }).format(Math.round(val));
+};
 
   const handleDownloadPDF = () => {
     if (!result) return;
@@ -104,7 +109,7 @@ const Calculator: React.FC<CalculatorProps> = ({ percentages }) => {
     doc.setFontSize(11);
     doc.setTextColor(0, 0, 0);
     addLine('Valor Nuda Propiedad', formatCurrency(result.nudaPropiedadValue));
-    addLine('Valor del Usufructo', formatCurrency(result.usufructValue));
+    //addLine('Valor del Usufructo', formatCurrency(result.usufructValue));
     addLine('Renta Vitalicia Mensual', `${formatCurrency(result.monthlyAnnuity)} / mes`);
 
     y += 15;
@@ -116,7 +121,7 @@ const Calculator: React.FC<CalculatorProps> = ({ percentages }) => {
     
     doc.setFont('helvetica', 'normal');
     doc.setFontSize(10);
-    const disclaimer = "La valoración es solo orientativa. Para recibir un estudio gratuito, póngase en contacto con nosotros a través del Tlf. 663 040404 o bien a través de la pagina web, grupovitalicio.es. Estudios detallados gratuitos y sin compromiso.";
+    const disclaimer = "La valoración es solo orientativa. Para recibir un estudio gratuito, póngase en contacto con nosotros a través del Tlf. 663 04 04 04 o bien a través de la pagina web, grupovitalicio.es. Estudios detallados gratuitos y sin compromiso.";
     const splitDisclaimer = doc.splitTextToSize(disclaimer, 170);
     doc.text(splitDisclaimer, margin, y);
     
@@ -124,7 +129,7 @@ const Calculator: React.FC<CalculatorProps> = ({ percentages }) => {
     doc.setFontSize(12);
     doc.setFont('helvetica', 'bold');
     doc.setTextColor(corporateColor);
-    doc.text('Teléfono: 663 040404', margin, y);
+    doc.text('Teléfono: 663 04 04 04', margin, y);
     y += 8;
     doc.text('Web: grupovitalicio.es', margin, y);
 
@@ -144,13 +149,16 @@ const Calculator: React.FC<CalculatorProps> = ({ percentages }) => {
           <div>
             <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Precio de Mercado</label>
             <div className="relative">
-              <input
-                type="number"
-                value={inputs.marketValue}
-                onChange={(e) => setInputs({ ...inputs, marketValue: Number(e.target.value) })}
+             <input
+                 type="text"
+                 value={inputs.marketValue ? new Intl.NumberFormat('es-ES').format(inputs.marketValue) : ''}
+                 onChange={(e) => {
+                                   const rawValue = e.target.value.replace(/\D/g, '');
+                                   setInputs({ ...inputs, marketValue: Number(rawValue) });
+                                  }}
                 className="w-full pl-6 pr-12 py-4 bg-slate-50 border border-slate-200 rounded-2xl focus:ring-4 focus:ring-[#a12d34]/10 focus:border-[#a12d34] transition-all outline-none font-bold text-xl text-slate-700"
-                placeholder="Ej: 300000"
-              />
+                placeholder="Ej: 400.000"
+             />
               <span className="absolute right-6 top-1/2 -translate-y-1/2 text-slate-400 font-bold text-lg">€</span>
             </div>
           </div>
@@ -234,19 +242,16 @@ const Calculator: React.FC<CalculatorProps> = ({ percentages }) => {
         <div className="bg-[#a12d34] text-white p-12 rounded-[2.5rem] shadow-2xl relative overflow-hidden group">
           <div className="relative z-10">
             <p className="text-white/60 text-xs font-black uppercase tracking-[0.3em] mb-4">Capital Nuda Propiedad</p>
-            <h3 className="text-5xl sm:text-6xl font-black mb-12 tracking-tighter">
+            <h3 className="text-5xl sm:text-5xl font-black mb-12 tracking-tighter">
               {result ? formatCurrency(result.nudaPropiedadValue) : '€ 0,00'}
             </h3>
             
-            <div className="grid grid-cols-2 gap-10 pt-10 border-t border-white/20">
+            <div className="grid grid-cols-1 gap-10 pt-10 border-t border-white/20">
+              
               <div>
-                <p className="text-white/60 text-[10px] font-black uppercase tracking-widest mb-2">Valor Usufructo</p>
-                <p className="text-2xl sm:text-3xl font-black">{result ? formatCurrency(result.usufructValue) : '€ 0,00'}</p>
-              </div>
-              <div>
-                <p className="text-white/60 text-[10px] font-black uppercase tracking-widest mb-2">Renta Mensual Estimada</p>
-                <p className="text-2xl sm:text-3xl font-black">{result ? formatCurrency(result.monthlyAnnuity) : '€ 0,00'}</p>
-              </div>
+                <p className="text-white/60 text-xs font-black uppercase tracking-[0.3em] mb-4">Renta Mensual Vitalicia</p>
+                <h3 className="text-5xl sm:text-5xl font-black mb-12 tracking-tighter">{result ? formatCurrency(result.monthlyAnnuity) : '€ 0,00'} </h3>
+                             </div>
             </div>
           </div>
           <div className="absolute top-0 right-0 p-10 opacity-5">
@@ -263,6 +268,7 @@ const Calculator: React.FC<CalculatorProps> = ({ percentages }) => {
               </div>
               <p className="text-xs text-slate-500 leading-relaxed font-medium">
                 Cobro total del capital en la firma de la escritura pública ante notario.
+                Estudiamos su caso sin compromiso.
               </p>
             </div>
             <a 
@@ -284,15 +290,16 @@ const Calculator: React.FC<CalculatorProps> = ({ percentages }) => {
               </div>
               <p className="text-xs text-slate-500 leading-relaxed font-medium">
                 Reciba una renta mensual garantizada de por vida sin perder el uso de su casa.
+                Estudiamos su caso sin compromiso.
               </p>
             </div>
             <a 
-              href="https://grupovitalicio.es/renta-vitalicia/" 
+              href="https://grupovitalicio.es" 
               target="_blank" 
               rel="noopener noreferrer"
-              className="mt-8 py-4 px-6 bg-[#a12d34] text-white rounded-2xl font-black text-xs uppercase tracking-widest hover:opacity-90 transition-all flex items-center justify-center gap-3 shadow-lg shadow-red-900/10"
+              className="mt-8 py-4 px-6 bg-slate-100 text-[#a12d34] rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-[#a12d34] hover:text-white transition-all flex items-center justify-center gap-3"
             >
-              Ver Plan Rentas <i className="fas fa-calendar text-[10px]"></i>
+               Solicitar Estudio <i className="fas fa-arrow-right text-[10px]"></i>
             </a>
           </div>
         </div>
