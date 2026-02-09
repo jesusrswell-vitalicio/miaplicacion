@@ -28,7 +28,16 @@ export const DEFAULT_PERCENTAGES: PercentageEntry[] = [
   { age: 87, percentage: 69.00 }, // Estimado intermedio
   { age: 88, percentage: 70.00 },
   { age: 89, percentage: 77.00 },
-  { age: 90, percentage: 80.00 }, // Proyección
+  { age: 90, percentage: 80.00 },
+  { age: 91, percentage: 81.00 },
+  { age: 92, percentage: 82.00 },
+  { age: 93, percentage: 83.00 },
+  { age: 94, percentage: 83.00 },
+  { age: 95, percentage: 84.00 },
+  { age: 96, percentage: 85.00 },
+  { age: 97, percentage: 86.00 }
+    
+  , // Proyección
 ];
 
 // Esperanza de vida simplificada para el cálculo de Renta Vitalicia (estimación estándar España)

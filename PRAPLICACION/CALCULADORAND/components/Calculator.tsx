@@ -30,8 +30,57 @@ const Calculator: React.FC<CalculatorProps> = ({ percentages }) => {
     const nudaPropiedadValue = (inputs.marketValue * percentage) / 100;
     const usufructValue = inputs.marketValue - nudaPropiedadValue;
     
-    const lifeExpectancy = LIFE_EXPECTANCY_TABLE[relevantAge] || 15;
-    const monthlyAnnuity = nudaPropiedadValue / (lifeExpectancy * 12);
+    let monthlyAnnuity = 0;
+    const baseConIncremento = nudaPropiedadValue * 1.10; // Nuda Propiedad + 10%
+
+    if (relevantAge >= 65 && relevantAge <= 82) {
+      // Rango 65-82: hasta los 90 años
+      const añosRestantes = 90 - relevantAge;
+      monthlyAnnuity = baseConIncremento / (añosRestantes * 12);
+    } 
+    else if (relevantAge >= 83 && relevantAge <= 84) {
+      // Rango 83-84: hasta los 91 años
+      const añosRestantes = 91 - relevantAge;
+      monthlyAnnuity = baseConIncremento / (añosRestantes * 12);
+  
+    } 
+    else if (relevantAge >= 85 && relevantAge <= 86) {
+      // Rango 85-86: hasta los 92 años
+      const añosRestantes = 92 - relevantAge;
+      monthlyAnnuity = baseConIncremento / (añosRestantes * 12);
+    } 
+
+    else if (relevantAge >= 87 && relevantAge <= 88) {
+      // Rango 87-88: hasta los 93 años
+      const añosRestantes = 93 - relevantAge;
+      monthlyAnnuity = baseConIncremento / (añosRestantes * 12);
+    } 
+
+    else if (relevantAge === 89) {
+      // Rango 89: hasta los 94 años
+      const añosRestantes = 94 - relevantAge;
+      monthlyAnnuity = baseConIncremento / (añosRestantes * 12);
+    } 
+    else if (relevantAge === 90) {
+      // Rango 90: hasta los 95 años
+      const añosRestantes = 95 - relevantAge;
+      monthlyAnnuity = baseConIncremento / (añosRestantes * 12);
+    } 
+
+    else if (relevantAge >= 91 && relevantAge <= 97) {
+      // Rango 91-97: hasta los 97 años
+      const añosRestantes = 97 - relevantAge;
+      // Si tiene 97 años, dividimos por 1 año para evitar error / 0
+      const divisor = añosRestantes <= 0 ? 1 : añosRestantes;
+      monthlyAnnuity = baseConIncremento / (divisor * 12);
+    } 
+
+       else {
+      // Por si la edad es mayor a 97 o menor a 65
+      const lifeExpectancy = LIFE_EXPECTANCY_TABLE[relevantAge] || 5;
+      monthlyAnnuity = nudaPropiedadValue / (lifeExpectancy * 12);
+    }
+    // ------------------------------
 
     setResult({
       nudaPropiedadValue,
