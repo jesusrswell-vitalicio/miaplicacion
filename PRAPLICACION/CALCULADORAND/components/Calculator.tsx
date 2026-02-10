@@ -17,6 +17,7 @@ const Calculator: React.FC<CalculatorProps> = ({ percentages }) => {
   });
 
   const [result, setResult] = useState<CalculationResult | null>(null);
+  const [appliedIncrement, setAppliedIncrement] = useState(10);
 
   const calculate = () => {
     const relevantAge = inputs.isSinglePerson || inputs.age2 === null
@@ -29,9 +30,8 @@ const Calculator: React.FC<CalculatorProps> = ({ percentages }) => {
 
     const percentage = entry.percentage;
     const nudaPropiedadValue = (inputs.marketValue * percentage) / 100;
-    const usufructValue = inputs.marketValue - nudaPropiedadValue;
     
-    // Cálculo de divisores por tramos de edad
+    // Cálculo de divisores por tramos de edad (según lógica corporativa)
     let divisorMeses = 1;
     if (relevantAge >= 65 && relevantAge <= 82) divisorMeses = (90 - relevantAge) * 12;
     else if (relevantAge >= 83 && relevantAge <= 84) divisorMeses = (91 - relevantAge) * 12;
@@ -45,18 +45,32 @@ const Calculator: React.FC<CalculatorProps> = ({ percentages }) => {
       divisorMeses = lifeExpectancy * 12;
     }
 
-    // Renta Vitalicia Completa (sin entrada)
+    // Renta Vitalicia Completa (sin entrada) - Siempre 10%
     const baseConIncrementoFull = nudaPropiedadValue * 1.10;
     const monthlyAnnuity = baseConIncrementoFull / divisorMeses;
 
-    // Renta Vitalicia Mixta (restando entrada)
+    // Lógica de incremento variable para Renta Mixta según tramos de entrada
+    let mixedIncrement = 0.10; // Default 10% (Hasta 1.000€)
+    const payment = inputs.initialPayment;
+
+    if (payment > 100000) mixedIncrement = 0.02; // Más de 100.000€: 2%
+    else if (payment > 50000) mixedIncrement = 0.04; // 50.001€ - 100.000€: 4%
+    else if (payment > 25000) mixedIncrement = 0.05; // 25.001€ - 50.000€: 5%
+    else if (payment > 20000) mixedIncrement = 0.055; // 20.001€ - 25.000€: 5,5%
+    else if (payment > 15000) mixedIncrement = 0.06; // 15.001€ - 20.000€: 6%
+    else if (payment > 10000) mixedIncrement = 0.065; // 10.001€ - 15.000€: 6,5%
+    else if (payment >= 1000) mixedIncrement = 0.07; // 1.000€ - 10.000€: 7%
+    
+    setAppliedIncrement(mixedIncrement * 100);
+
+    // Cálculo Mixto: (Nuda - Entrada) * (1 + Incremento variable) / Meses
     const capitalRestante = Math.max(0, nudaPropiedadValue - inputs.initialPayment);
-    const baseConIncrementoMixed = capitalRestante * 1.10;
+    const baseConIncrementoMixed = capitalRestante * (1 + mixedIncrement);
     const mixedAnnuity = baseConIncrementoMixed / divisorMeses;
 
     setResult({
       nudaPropiedadValue,
-      usufructValue,
+      usufructValue: inputs.marketValue - nudaPropiedadValue,
       oneTimePayment: nudaPropiedadValue,
       monthlyAnnuity,
       mixedAnnuity,
@@ -110,7 +124,8 @@ const Calculator: React.FC<CalculatorProps> = ({ percentages }) => {
       doc.setFont('helvetica', 'bold');
       doc.text(`${label}:`, margin, y);
       doc.setFont('helvetica', 'normal');
-      doc.text(value, margin + 60, y);
+      // Aumentamos el margen horizontal de 60 a 85 para evitar el solapamiento con títulos largos
+      doc.text(value, margin + 85, y); 
       y += 10;
     };
 
@@ -133,6 +148,14 @@ const Calculator: React.FC<CalculatorProps> = ({ percentages }) => {
     
     if (inputs.initialPayment > 0) {
       addLine('Opción 3: Mixta (Entrada + Renta)', `${formatCurrency(inputs.initialPayment)} + ${formatCurrency(result.mixedAnnuity)} / mes`);
+      doc.setFontSize(9);
+      doc.setTextColor(greyColor);
+      doc.setFont('helvetica', 'italic');
+      doc.text(`* Incluye bonificación de incremento reducido al ${appliedIncrement.toString().replace('.', ',')}%`, margin, y);
+      y += 10;
+      doc.setFontSize(11);
+      doc.setTextColor(0, 0, 0);
+      doc.setFont('helvetica', 'normal');
     }
 
     y += 15;
@@ -186,7 +209,7 @@ const Calculator: React.FC<CalculatorProps> = ({ percentages }) => {
           </div>
 
           <div>
-            <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Capital Inicial (Opcional)</label>
+            <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Capital Inicial (Entrada)</label>
             <div className="relative">
              <input
                  type="text"
@@ -196,11 +219,15 @@ const Calculator: React.FC<CalculatorProps> = ({ percentages }) => {
                                    setInputs({ ...inputs, initialPayment: Number(rawValue) });
                                   }}
                 className="w-full pl-6 pr-12 py-4 bg-slate-50 border border-slate-200 rounded-2xl focus:ring-4 focus:ring-[#a12d34]/10 focus:border-[#a12d34] transition-all outline-none font-bold text-xl text-slate-700"
-                placeholder="Introduzca entrada si desea"
+                placeholder="Opcional: Introduzca entrada"
              />
               <span className="absolute right-6 top-1/2 -translate-y-1/2 text-slate-400 font-bold text-lg">€</span>
             </div>
-            <p className="text-[9px] text-slate-400 mt-2 font-bold uppercase tracking-tighter">Este importe se restará del pago único para generar la renta mixta.</p>
+            <p className="text-[9px] text-slate-400 mt-2 font-bold uppercase tracking-tighter">
+              {inputs.initialPayment > 0 ? (
+                <span className="text-[#a12d34]">Bonificación aplicada: Coeficiente reducido al {appliedIncrement.toString().replace('.', ',')}%</span>
+              ) : "Introduzca una entrada para reducir el coeficiente de incremento."}
+            </p>
           </div>
 
           <div>
@@ -303,7 +330,7 @@ const Calculator: React.FC<CalculatorProps> = ({ percentages }) => {
                 <span className="text-sm font-normal text-slate-400 ml-1">/mes</span>
               </div>
               <p className="text-xs text-slate-500 leading-relaxed font-medium">
-                Sin pago inicial. Se convierte todo el capital de la nuda propiedad en una mensualidad vitalicia.
+                Sin pago inicial. Se convierte todo el capital de la nuda propiedad en mensualidades (+10% de incremento corporativo).
               </p>
             </div>
             <a 
@@ -318,7 +345,14 @@ const Calculator: React.FC<CalculatorProps> = ({ percentages }) => {
           {/* Card: Renta Mixta (Entrada + Renta) */}
           <div className="bg-white p-8 rounded-[2rem] shadow-xl border border-slate-100 flex flex-col justify-between group hover:border-[#a12d34]/30 transition-all ring-4 ring-[#a12d34]/5">
             <div>
-              <span className="text-[10px] font-black text-[#a12d34] uppercase tracking-[0.2em] block mb-5">Opción Mixta (Recomendada)</span>
+              <div className="flex justify-between items-start mb-5">
+                <span className="text-[10px] font-black text-[#a12d34] uppercase tracking-[0.2em] block">Opción Mixta (Bonificada)</span>
+                {inputs.initialPayment > 0 && (
+                  <span className="bg-[#a12d34]/10 text-[#a12d34] text-[9px] font-bold px-2 py-1 rounded-md">
+                    +{appliedIncrement.toString().replace('.', ',')}% INC.
+                  </span>
+                )}
+              </div>
               <div className="space-y-2 mb-3">
                 <div className="text-xl font-bold text-slate-500">
                   {inputs.initialPayment > 0 ? formatCurrency(inputs.initialPayment) : '--- €'} <span className="text-xs font-medium uppercase tracking-tighter">Entrada</span>
@@ -329,8 +363,7 @@ const Calculator: React.FC<CalculatorProps> = ({ percentages }) => {
                 </div>
               </div>
               <p className="text-xs text-slate-500 leading-relaxed font-medium">
-                Combine un pago inicial en notaría con una renta mensual para su día a día. 
-                {inputs.initialPayment === 0 && <span className="block mt-2 font-bold text-[#a12d34]">Defina una entrada en el panel de la izquierda para ver este cálculo.</span>}
+                Combine un pago inicial con una renta mensual. A mayor entrada, aplicamos un menor coeficiente de incremento.
               </p>
             </div>
             <a 
