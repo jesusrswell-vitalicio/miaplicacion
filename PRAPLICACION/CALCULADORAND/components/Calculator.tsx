@@ -124,7 +124,6 @@ const Calculator: React.FC<CalculatorProps> = ({ percentages }) => {
       doc.setFont('helvetica', 'bold');
       doc.text(`${label}:`, margin, y);
       doc.setFont('helvetica', 'normal');
-      // Aumentamos el margen horizontal de 60 a 85 para evitar el solapamiento con títulos largos
       doc.text(value, margin + 85, y); 
       y += 10;
     };
@@ -315,8 +314,14 @@ const Calculator: React.FC<CalculatorProps> = ({ percentages }) => {
               Capital total estimado que el cliente recibiría en un único pago al formalizar la operación.
             </p>
           </div>
-          <div className="absolute top-0 right-0 p-10 opacity-5">
-            <i className="fas fa-hand-holding-usd text-[12rem]"></i>
+          {/* SVG Personalizado con Casa y Corazón (Mitad de tamaño anterior) */}
+          <div className="absolute top-0 right-0 p-8 opacity-5 pointer-events-none">
+            <svg className="w-24 h-24 lg:w-32 lg:h-32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1" strokeLinecap="round" strokeLinejoin="round">
+              {/* Contorno de la casa */}
+              <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
+              {/* Corazón más grande y central sin V */}
+              <path d="M12 18.5 c -2.5 -2.5 -5 -4.5 -5 -7 c 0 -1.5 1.1 -2.5 2.5 -2.5 c 0.8 0 1.6 0.4 2 1.1 c 0.4 -0.7 1.2 -1.1 2 -1.1 c 1.4 0 2.5 1 2.5 2.5 c 0 2.5 -2.5 4.5 -5 7 z" />
+            </svg>
           </div>
         </div>
 
